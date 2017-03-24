@@ -1,5 +1,7 @@
 from datetime import datetime,timedelta
 import math
+import pandas as pd
+import numpy as np
 
 
 def read_file_to_volumes(path, in_file, file_suffix):
@@ -96,6 +98,31 @@ def read_weather(path, in_file, file_suffix):
 
     return weathers
 
+def read_links(path, in_file, file_suffix):
+
+    in_file_name = path+in_file + file_suffix
+    links = pd.read_csv(in_file_name,sep=',')
+    links = links.drop('lane_width',1)
+    links = links.as_matrix()
+    l = {}
+    for line in links:
+        l[line[0]] = {}
+        l[line[0]]['length'] = line[1]
+        l[line[0]]['width'] = line[2] 
+        l[line[0]]['in_top'] = [] if type(line[4])==np.float else map(int,line[4].split(','))
+        l[line[0]]['out_top'] = [] if type(line[5])==np.float else map(int,line[5].split(','))
+    return l
+
+def read_routes(path, in_file, file_suffix):
+
+    in_file_name = path+in_file + file_suffix
+    routes = pd.read_csv(in_file_name,sep=',')
+    routes = routes.as_matrix()
+    r = {}
+    for line in routes:
+        r[line[0]+'-'+str(line[1])] = map(int,line[2].split(','))
+    return r
+
 
 def print_volumes(volumes, in_file, file_suffix):
     out_suffix = '_20min_avg_volume'
@@ -143,6 +170,8 @@ def print_travel_times(travel_times, in_file, file_suffix):
 
 def main():
     print 'This is not for executing.'
+    #print read_links('../../','dataSets/training/links (table 3)','.csv')
+    #print read_routes('../../','dataSets/training/routes (table 4)','.csv')
     # in_file = 'volume(table 6)_training'
     # volumes = read_file_to_volumes(in_file)
     # print_volumes(volumes, in_file)
