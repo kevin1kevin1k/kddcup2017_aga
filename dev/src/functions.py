@@ -1,4 +1,6 @@
 from datetime import datetime,timedelta
+from keras.models import Sequential
+from keras.layers import Dense
 import math
 import pandas as pd
 import numpy as np
@@ -8,13 +10,12 @@ def read_file_to_volumes(path, in_file, file_suffix):
 
     in_file_name = in_file + file_suffix
 
-    # Step 1: Load volume data
     fr = open(path + in_file_name, 'r')
     fr.readline()  # skip the header
     vol_data = fr.readlines()
     fr.close()
 
-    # Step 2: Create a dictionary to caculate and store volume per time window
+    # Create a dictionary to caculate and store volume per time window
     volumes = {}  # key: time window value: dictionary
     for i in range(len(vol_data)):
         each_pass = vol_data[i].replace('"', '').split(',')
@@ -24,7 +25,6 @@ def read_file_to_volumes(path, in_file, file_suffix):
         pass_time = each_pass[0]
         pass_time = datetime.strptime(pass_time, "%Y-%m-%d %H:%M:%S")
         time_window_minute = int(math.floor(pass_time.minute / 20) * 20)
-        #print pass_time
         start_time_window = datetime(pass_time.year, pass_time.month, pass_time.day,
                                      pass_time.hour, time_window_minute, 0)
 
@@ -44,14 +44,12 @@ def read_file_to_travel_times(path, in_file, file_suffix):
 
     in_file_name = in_file + file_suffix
 
-    # Step 1: Load trajectories
     fr = open(path + in_file_name, 'r')
     fr.readline()  # skip the header
     traj_data = fr.readlines()
     fr.close()
-    # print(traj_data[0])
 
-    # Step 2: Create a dictionary to store travel time for each route per time window
+    # Create a dictionary to store travel time for each route per time window
     travel_times = {}  # key: route_id. Value is also a dictionary of which key is the start time for the time window and value is a list of travel times
     for i in range(len(traj_data)):
         each_traj = traj_data[i].replace('"', '').split(',')
@@ -81,13 +79,13 @@ def read_weather(path, in_file, file_suffix):
 
     in_file_name = in_file + file_suffix
 
-    # Step 1: Load volume data
+    # Load volume data
     fr = open(path + in_file_name, 'r')
     fr.readline()  # skip the header
     vol_data = fr.readlines()
     fr.close()
 
-    # Step 2: Create a dictionary to caculate and store volume per time window
+    # Create a dictionary to caculate and store volume per time window
     weathers = {}  # key: time window value: dictionary
     for i in range(len(vol_data)):
         each_pass = vol_data[i].replace('"', '').split(',')
@@ -128,7 +126,7 @@ def print_volumes(volumes, in_file, file_suffix):
     out_suffix = '_20min_avg_volume'
     out_file_name = in_file.split('_')[1] + out_suffix + file_suffix
 
-    # Step 3: format output for tollgate and direction per time window
+    # Format output for tollgate and direction per time window
     fw = open(out_file_name, 'w')
     fw.writelines(','.join(['"tollgate_id"', '"time_window"', '"direction"', '"volume"']) + '\n')
     time_windows = list(volumes.keys())
@@ -150,8 +148,7 @@ def print_travel_times(travel_times, in_file, file_suffix):
     out_suffix = '_20min_avg_travel_time'
     out_file_name = in_file.split('_')[1] + out_suffix + file_suffix
 
-
-    # Step 3: Calculate average travel time for each route per time window
+    # Calculate average travel time for each route per time window
     fw = open(out_file_name, 'w')
     fw.writelines(','.join(['"intersection_id"', '"tollgate_id"', '"time_window"', '"avg_travel_time"']) + '\n')
     for route in travel_times.keys():
@@ -166,6 +163,21 @@ def print_travel_times(travel_times, in_file, file_suffix):
                                  '"' + str(avg_tt) + '"']) + '\n'
             fw.writelines(out_line)
     fw.close()
+
+#Example usage: gen_model(10,2, [50,25],[None,'relu'])
+#will return a NN [10]->[50]-relu->[25]-linear->[2]
+def gen_model(in_dim, hide_layer_num_node, hide_layer_dim,act_func):
+    model = Sequential()
+    
+    #input layer
+    model.add(Dense(hide_layer_dim[0], input_dim=in_dim, init='normal', activation=act_func[0]))
+    #hidden layer
+    for i in range(1,len(hide_layer_dim))
+        model.add(Dense(hide_layer_dim[i], init='normal', activation=act_func[i]))
+    #output layer
+    model.add(Dense(out_dim, init='normal', activation='linear'))
+
+    return model
 
 
 def main():
