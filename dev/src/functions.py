@@ -172,7 +172,7 @@ def gen_model(in_dim, hide_layer_num_node, hide_layer_dim,act_func):
     #input layer
     model.add(Dense(hide_layer_dim[0], input_dim=in_dim, init='normal', activation=act_func[0]))
     #hidden layer
-    for i in range(1,len(hide_layer_dim))
+    for i in range(1,len(hide_layer_dim)):
         model.add(Dense(hide_layer_dim[i], init='normal', activation=act_func[i]))
     #output layer
     model.add(Dense(out_dim, init='normal', activation='linear'))
