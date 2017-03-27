@@ -3,8 +3,6 @@
 
 # # TODO
 # 
-# add all routes info to training data
-# 
 # use 7 numbers to indicate the counts of each vehicle_model
 # 
 # use mean of interpolation instead of zero (either filling X or y, especially y)
@@ -120,12 +118,12 @@ def my_mape(pred, label, return_total=False):
     total = 0
     
     for p, l in zip(pred, label):
-        if label != 0:
-            mape += np.abs((p-l) / l)
+        if l != 0:
+            mape += abs((p-l) / l)
             total += 1
     
     mape /= total
-    return mape, total if return_total else mape    
+    return (mape, total) if return_total else mape    
 
 
 
@@ -212,15 +210,24 @@ class Features:
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
         
-        df = self.get_vol(dates, ampm, toll, dire, intervals_train)
-        group = df.groupby(['date', 'time', 'tollgate_id', 'direction'])
-        df = group.agg([np.sum, np.mean, np.std]).reset_index()
-        car_info = df[['vehicle_model', 'has_etc', 'vehicle_type']].values
+        def one_tolldire(_toll, _dire):
+            df = self.get_vol(dates, ampm, _toll, _dire, intervals_train)
+            group = df.groupby(['date', 'time', 'tollgate_id', 'direction'])
+            df = group.agg([np.sum, np.mean]).reset_index()
+            df.fillna(0, inplace=True)
+            car_info = df[['vehicle_model', 'has_etc', 'vehicle_type']].values
 
-        miss = missing_idx(df=df, dates=dates, ampm=ampm, intervals=intervals_train, name='vol', verbose=VERBOSE)
-        for i in miss:
-            # zero may be bad
-            car_info = np.insert(car_info, i, 0, axis=0)
+            miss = missing_idx(df=df, dates=dates, ampm=ampm, intervals=intervals_train, name='vol', verbose=VERBOSE)
+            for i in miss:
+                # zero may be bad
+                car_info = np.insert(car_info, i, 0, axis=0)
+        
+            return car_info
+
+        car_info = reduce(
+            concat(axis=1),
+            [one_tolldire(toll, dire) for toll, dire in toll_dire]
+        )
         
         shape = car_info.shape
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
@@ -235,13 +242,13 @@ class Features:
             np.array([np.concatenate([np.outer(one6, X[i]), I6], axis=1) for i in range(X.shape[0])])
         )
         
-        # shape: (number of days * 6, 79)
+        # shape: (number of days * 6, 205)
         # 6 = predicting windows per 2 hours
-        # 79 = 7(weekday onehot)
-        #    + 7(weather)
-        #    + 3(model, etc, type)*3(sum, mean, std)*6(windows per 2 hours)
-        #    + 5(tolldire onehot)
-        #    + 6(window onehot)
+        # 205 = 7(weekday onehot)
+        #     + 7(weather)
+        #     + 3(model, etc, type)*2(sum, mean)*6(windows per 2 hours)*5(all tolldire pairs)
+        #     + 5(tolldire onehot)
+        #     + 6(window onehot)
         
         df = None
         return X
@@ -290,16 +297,25 @@ class Features:
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
 
-        df = self.get_tra(dates, ampm, inte, toll, intervals_train)
-        group = df.groupby(['date', 'time', 'intersection_id', 'tollgate_id'])
-        df = group.agg([np.sum, np.mean, np.std]).reset_index()
-        df.fillna(0, inplace=True)
-        car_info = df['travel_time'].values
+        def one_intetoll(_inte, _toll):
+            df = self.get_tra(dates, ampm, _inte, _toll, intervals_train)
 
-        miss = missing_idx(df=df, dates=dates, ampm=ampm, intervals=intervals_train, name='tra', verbose=VERBOSE)
-        for i in miss:
-            # zero may be bad
-            car_info = np.insert(car_info, i, 0, axis=0)
+            group = df.groupby(['date', 'time', 'intersection_id', 'tollgate_id'])
+            df = group.agg([np.sum, np.mean]).reset_index()
+            df.fillna(0, inplace=True)
+            car_info = df['travel_time'].values
+
+            miss = missing_idx(df=df, dates=dates, ampm=ampm, intervals=intervals_train, name='tra', verbose=VERBOSE)
+            for i in miss:
+                # zero may be bad
+                car_info = np.insert(car_info, i, 0, axis=0)
+            
+            return car_info
+
+        car_info = reduce(
+            concat(axis=1),
+            [one_intetoll(inte, toll) for inte, toll in inte_toll]
+        )
 
         shape = car_info.shape
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
@@ -314,11 +330,11 @@ class Features:
             np.array([np.concatenate([np.outer(one6, X[i]), I6], axis=1) for i in range(X.shape[0])])
         )
         
-        # shape: (number of days * 6, 44)
+        # shape: (number of days * 6, 98)
         # 6 = predicting windows per 2 hours
-        # 44 = 7(weekday onehot)
+        # 98 = 7(weekday onehot)
         #    + 7(weather)
-        #    + 1(travel_time)*3(sum, mean, std)*6(windows per 2 hours)
+        #    + 1(travel_time)*2(sum, mean)*6(windows per 2 hours)*6(all intetoll pairs)
         #    + 6(intetoll onehot)
         #    + 6(window onehot)  
         
@@ -379,18 +395,3 @@ if __name__ == '__main__':
     X_valid, y_valid = feat.get_tra_Xy(dates=valid_dates, ampm='am')
     print X_valid.shape, y_valid.shape
     
-
-# Testing example:
-
-    feat = Features(
-        '../dataSets/testing_phase1/',
-        'weather (table 7)_test1.csv',
-        'volume(table 6)_test1.csv',
-        'trajectories(table 5)_test1.csv'
-    )
-
-    X = feat.get_vol_X(dates=test1_dates, ampm='am')
-    print X.shape
-
-    X = feat.get_tra_X(dates=test1_dates, ampm='am')
-    print X.shape
