@@ -166,7 +166,7 @@ def print_travel_times(travel_times, in_file, file_suffix):
 
 #Example usage: gen_model(10,2, [50,25],[None,'relu'])
 #will return a NN [10]->[50]-relu->[25]-linear->[2]
-def gen_model(in_dim, hide_layer_num_node, hide_layer_dim,act_func):
+def gen_model(in_dim, hide_layer_num_node, hide_layer_dim, out_dim, act_func):
     model = Sequential()
     
     #input layer
