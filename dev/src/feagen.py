@@ -6,14 +6,21 @@
 # use 7 numbers to indicate the counts of each vehicle_model
 # 
 # use mean of interpolation instead of zero (either filling X or y, especially y)
+# 
+# remove 10/1 - 10/7
+# 
+# remove std
 
+# In[ ]:
 
 import pandas as pd
 import datetime
 import math
 import numpy as np
+from sklearn import preprocessing
 
 
+# In[ ]:
 
 vol_tolls = (1, 1, 2, 3, 3)
 vol_dires = (0, 1, 0, 0, 1)
@@ -41,6 +48,7 @@ test1_dates = ('2016-10-18', '2016-10-24')
 VERBOSE = False
 
 
+# In[ ]:
 
 def parser_date(strs):
     ans = []
@@ -126,6 +134,7 @@ def my_mape(pred, label, return_total=False):
     return (mape, total) if return_total else mape    
 
 
+# In[ ]:
 
 class Features:
     def __init__(self, pathname, filename_wea, filename_vol, filename_tra):
@@ -135,7 +144,9 @@ class Features:
         self.filename_wea = filename_wea
         self.filename_vol = filename_vol
         self.filename_tra = filename_tra
+        print 'Reading files...'
         self.read_all()
+        print 'Finish reading files.'
         
     def read_wea(self):
         self.df_wea = pd.read_csv(self.pathname + self.filename_wea, parse_dates=[0], date_parser=parser_date)
@@ -222,6 +233,10 @@ class Features:
                 # zero may be bad
                 car_info = np.insert(car_info, i, 0, axis=0)
         
+            shape = car_info.shape
+            car_info = car_info.reshape([shape[0] / 6, shape[1] * 6])
+            min_max_scaler = preprocessing.MinMaxScaler()
+            car_info = min_max_scaler.fit_transform(car_info)
             return car_info
 
         car_info = reduce(
@@ -229,10 +244,8 @@ class Features:
             [one_tolldire(toll, dire) for toll, dire in toll_dire]
         )
         
-        shape = car_info.shape
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
         weather = self.get_wea(dates=dates, ampm=ampm)
-        car_info = car_info.reshape([shape[0] / 6, shape[1] * 6])
         onehot_tolldire = np.tile(onehot(len(toll_dire), toll_dire.index((toll, dire))), (weekday.shape[0], 1))
         X = np.concatenate([weekday, weather, car_info, onehot_tolldire], axis=1)
         I6 = np.eye(6)
@@ -310,6 +323,10 @@ class Features:
                 # zero may be bad
                 car_info = np.insert(car_info, i, 0, axis=0)
             
+            shape = car_info.shape
+            car_info = car_info.reshape([shape[0] / 6, shape[1] * 6])
+            min_max_scaler = preprocessing.MinMaxScaler()
+            car_info = min_max_scaler.fit_transform(car_info)
             return car_info
 
         car_info = reduce(
@@ -317,10 +334,8 @@ class Features:
             [one_intetoll(inte, toll) for inte, toll in inte_toll]
         )
 
-        shape = car_info.shape
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
         weather = self.get_wea(dates=dates, ampm=ampm)
-        car_info = car_info.reshape([shape[0] / 6, shape[1] * 6])
         onehot_intetoll = np.tile(onehot(len(inte_toll), inte_toll.index((inte, toll))), (weekday.shape[0], 1))
         X = np.concatenate([weekday, weather, car_info, onehot_intetoll], axis=1)
         I6 = np.eye(6)
@@ -371,9 +386,11 @@ class Features:
         return X, y
 
 
+# In[ ]:
 
 if __name__ == '__main__':
     
+
 # Training example:
     
     feat = Features(
@@ -389,9 +406,9 @@ if __name__ == '__main__':
     X_valid, y_valid = feat.get_vol_Xy(dates=valid_dates, ampm='am')
     print X_valid.shape, y_valid.shape
 
-    X, y = feat.get_tra_Xy(dates=long_dates, ampm='am')
-    print X.shape, y.shape
+#     X, y = feat.get_tra_Xy(dates=long_dates, ampm='am')
+#     print X.shape, y.shape
 
-    X_valid, y_valid = feat.get_tra_Xy(dates=valid_dates, ampm='am')
-    print X_valid.shape, y_valid.shape
-    
+#     X_valid, y_valid = feat.get_tra_Xy(dates=valid_dates, ampm='am')
+#     print X_valid.shape, y_valid.shape
+
