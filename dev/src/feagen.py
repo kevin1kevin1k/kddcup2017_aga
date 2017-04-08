@@ -213,7 +213,7 @@ class Features:
         mask = (df['tollgate_id'] == toll) & (df['direction'] == dire)
         return df[mask]
     
-    def get_vol_X_tolldire(self, dates, ampm, toll, dire, normalize=True, window_onehot=True):
+    def get_vol_X_tolldire(self, dates, ampm, toll, dire, normalize=True, window_onehot=True, use_all_tolldire=True):
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
         
@@ -236,10 +236,13 @@ class Features:
                 car_info = min_max_scaler.fit_transform(car_info)
             return car_info
 
-        car_info = reduce(
-            concat(axis=1),
-            [one_tolldire(_t, _d) for _t, _d in toll_dire]
-        )
+        if use_all_tolldire:
+            car_info = reduce(
+                concat(axis=1),
+                [one_tolldire(_t, _d) for _t, _d in toll_dire]
+            )
+        else:
+            car_info = one_tolldire(toll, dire)
         
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
         weather = self.get_wea(dates=dates, ampm=ampm)
@@ -264,10 +267,10 @@ class Features:
         df = None
         return X
     
-    def get_vol_X(self, dates, ampm, normalize=True, window_onehot=True):
+    def get_vol_X(self, dates, ampm, normalize=True, window_onehot=True, use_all_tolldire=True):
         return reduce(
             concat(axis=0),
-            [self.get_vol_X_tolldire(dates=dates, ampm=ampm, toll=toll, dire=dire, normalize=normalize) for toll, dire in toll_dire]
+            [self.get_vol_X_tolldire(dates=dates, ampm=ampm, toll=toll, dire=dire, normalize=normalize, window_onehot=window_onehot, use_all_tolldire=use_all_tolldire) for toll, dire in toll_dire]
         )
     
     def get_vol_y(self, dates, ampm, toll, dire):
@@ -284,8 +287,8 @@ class Features:
         df = None
         return y
     
-    def get_vol_Xy(self, dates, ampm, normalize=True, window_onehot=True):
-        X = self.get_vol_X(dates, ampm, normalize=normalize)
+    def get_vol_Xy(self, dates, ampm, normalize=True, window_onehot=True, use_all_tolldire=True):
+        X = self.get_vol_X(dates, ampm, normalize=normalize, window_onehot=window_onehot, use_all_tolldire=use_all_tolldire)
         y = reduce(
             concat(axis=0),
             [self.get_vol_y(dates=dates, ampm=ampm, toll=toll, dire=dire) for toll, dire in toll_dire]
@@ -304,7 +307,7 @@ class Features:
         mask = (df['intersection_id'] == inte) & (df['tollgate_id'] == toll)
         return df[mask]
     
-    def get_tra_X_intetoll(self, dates, ampm, inte, toll, normalize=True, window_onehot=True):
+    def get_tra_X_intetoll(self, dates, ampm, inte, toll, normalize=True, window_onehot=True, use_all_intetoll=True):
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
 
@@ -328,10 +331,13 @@ class Features:
                 car_info = min_max_scaler.fit_transform(car_info)
             return car_info
 
-        car_info = reduce(
-            concat(axis=1),
-            [one_intetoll(_i, _t) for _i, _t in inte_toll]
-        )
+        if use_all_intetoll:
+            car_info = reduce(
+                concat(axis=1),
+                [one_intetoll(_i, _t) for _i, _t in inte_toll]
+            )
+        else:
+            car_info = one_intetoll(inte, toll)
         
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
         weather = self.get_wea(dates=dates, ampm=ampm)
@@ -356,10 +362,10 @@ class Features:
         df = None
         return X
 
-    def get_tra_X(self, dates, ampm, normalize=True, window_onehot=True):
+    def get_tra_X(self, dates, ampm, normalize=True, window_onehot=True, use_all_intetoll=True):
         return reduce(
             concat(axis=0),
-            [self.get_tra_X_intetoll(dates=dates, ampm=ampm, inte=inte, toll=toll, normalize=normalize) for inte, toll in inte_toll]
+            [self.get_tra_X_intetoll(dates=dates, ampm=ampm, inte=inte, toll=toll, normalize=normalize, window_onehot=window_onehot, use_all_intetoll=use_all_intetoll) for inte, toll in inte_toll]
         )
     
     def get_tra_y(self, dates, ampm, inte, toll):
@@ -376,8 +382,8 @@ class Features:
         df = None
         return y
     
-    def get_tra_Xy(self, dates, ampm, normalize=True, window_onehot=True):
-        X = self.get_tra_X(dates, ampm, normalize=normalize)
+    def get_tra_Xy(self, dates, ampm, normalize=True, window_onehot=True, use_all_intetoll=True):
+        X = self.get_tra_X(dates, ampm, normalize=normalize, window_onehot=window_onehot, use_all_intetoll=use_all_intetoll)
         y = reduce(
             concat(axis=0),
             [self.get_tra_y(dates=dates, ampm=ampm, inte=inte, toll=toll) for inte, toll in inte_toll]
@@ -400,14 +406,14 @@ if __name__ == '__main__':
         'trajectories(table 5)_training.csv'
     )
 
-#     X, y = feat.get_vol_Xy(dates=long_dates, ampm='am')
-#     print X.shape, y.shape
+#     X_train, y_train = feat.get_vol_Xy(dates=long_dates, ampm='am')
+#     print X_train.shape, y_train.shape
 
 #     X_valid, y_valid = feat.get_vol_Xy(dates=valid_dates, ampm='am')
 #     print X_valid.shape, y_valid.shape
 
-    X, y = feat.get_tra_Xy(dates=long_dates, ampm='am')
-    print X.shape, y.shape
+    X_train, y_train = feat.get_tra_Xy(dates=long_dates, ampm='am')
+    print X_train.shape, y_train.shape
 
     X_valid, y_valid = feat.get_tra_Xy(dates=valid_dates, ampm='am')
     print X_valid.shape, y_valid.shape
