@@ -6,10 +6,6 @@
 # use 7 numbers to indicate the counts of each vehicle_model
 # 
 # use mean of interpolation instead of zero (either filling X or y, especially y)
-# 
-# remove 10/1 - 10/7
-# 
-# remove std
 
 # In[ ]:
 
@@ -217,7 +213,7 @@ class Features:
         mask = (df['tollgate_id'] == toll) & (df['direction'] == dire)
         return df[mask]
     
-    def get_vol_X_tolldire(self, dates, ampm, toll, dire):
+    def get_vol_X_tolldire(self, dates, ampm, toll, dire, normalize=True):
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
         
@@ -235,8 +231,9 @@ class Features:
         
             shape = car_info.shape
             car_info = car_info.reshape([shape[0] / 6, shape[1] * 6])
-            min_max_scaler = preprocessing.MinMaxScaler()
-            car_info = min_max_scaler.fit_transform(car_info)
+            if normalize:
+                min_max_scaler = preprocessing.MinMaxScaler()
+                car_info = min_max_scaler.fit_transform(car_info)
             return car_info
 
         car_info = reduce(
@@ -266,13 +263,13 @@ class Features:
         df = None
         return X
     
-    def get_vol_X(self, dates, ampm):
+    def get_vol_X(self, dates, ampm, normalize=True):
         return reduce(
             concat(axis=0),
-            [self.get_vol_X_tolldire(dates=dates, ampm=ampm, toll=toll, dire=dire) for toll, dire in toll_dire]
+            [self.get_vol_X_tolldire(dates=dates, ampm=ampm, toll=toll, dire=dire, normalize=normalize) for toll, dire in toll_dire]
         )
     
-    def get_vol_y(self, dates, ampm, toll, dire):
+    def get_vol_y(self, dates, ampm, toll, dire, normalize=True):
         df = self.get_vol(dates, ampm, toll, dire, intervals_predict)
         group = df.groupby(['date', 'time', 'tollgate_id', 'direction'])
         df = group.count().reset_index()
@@ -286,11 +283,11 @@ class Features:
         df = None
         return y
     
-    def get_vol_Xy(self, dates, ampm):
-        X = self.get_vol_X(dates, ampm)
+    def get_vol_Xy(self, dates, ampm, normalize=True):
+        X = self.get_vol_X(dates, ampm, normalize=normalize)
         y = reduce(
             concat(axis=0),
-            [self.get_vol_y(dates=dates, ampm=ampm, toll=toll, dire=dire) for toll, dire in toll_dire]
+            [self.get_vol_y(dates=dates, ampm=ampm, toll=toll, dire=dire, normalize=normalize) for toll, dire in toll_dire]
         )
         
         return X, y
@@ -306,7 +303,7 @@ class Features:
         mask = (df['intersection_id'] == inte) & (df['tollgate_id'] == toll)
         return df[mask]
     
-    def get_tra_X_intetoll(self, dates, ampm, inte, toll):
+    def get_tra_X_intetoll(self, dates, ampm, inte, toll, normalize=True):
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
 
@@ -325,8 +322,9 @@ class Features:
             
             shape = car_info.shape
             car_info = car_info.reshape([shape[0] / 6, shape[1] * 6])
-            min_max_scaler = preprocessing.MinMaxScaler()
-            car_info = min_max_scaler.fit_transform(car_info)
+            if normalize:
+                min_max_scaler = preprocessing.MinMaxScaler()
+                car_info = min_max_scaler.fit_transform(car_info)
             return car_info
 
         car_info = reduce(
@@ -356,13 +354,13 @@ class Features:
         df = None
         return X
 
-    def get_tra_X(self, dates, ampm):
+    def get_tra_X(self, dates, ampm, normalize=True):
         return reduce(
             concat(axis=0),
-            [self.get_tra_X_intetoll(dates=dates, ampm=ampm, inte=inte, toll=toll) for inte, toll in inte_toll]
+            [self.get_tra_X_intetoll(dates=dates, ampm=ampm, inte=inte, toll=toll, normalize=normalize) for inte, toll in inte_toll]
         )
     
-    def get_tra_y(self, dates, ampm, inte, toll):
+    def get_tra_y(self, dates, ampm, inte, toll, normalize=True):
         df = self.get_tra(dates, ampm, inte, toll, intervals_predict)
         group = df.groupby(['date', 'time', 'intersection_id', 'tollgate_id'])
         df = group.agg(np.mean).reset_index()
@@ -376,11 +374,11 @@ class Features:
         df = None
         return y
     
-    def get_tra_Xy(self, dates, ampm):
-        X = self.get_tra_X(dates, ampm)
+    def get_tra_Xy(self, dates, ampm, normalize=True):
+        X = self.get_tra_X(dates, ampm, normalize=normalize)
         y = reduce(
             concat(axis=0),
-            [self.get_tra_y(dates=dates, ampm=ampm, inte=inte, toll=toll) for inte, toll in inte_toll]
+            [self.get_tra_y(dates=dates, ampm=ampm, inte=inte, toll=toll, normalize=normalize) for inte, toll in inte_toll]
         )
         
         return X, y
@@ -400,15 +398,15 @@ if __name__ == '__main__':
         'trajectories(table 5)_training.csv'
     )
 
-    X, y = feat.get_vol_Xy(dates=long_dates, ampm='am')
-    print X.shape, y.shape
-
-    X_valid, y_valid = feat.get_vol_Xy(dates=valid_dates, ampm='am')
-    print X_valid.shape, y_valid.shape
-
-#     X, y = feat.get_tra_Xy(dates=long_dates, ampm='am')
+#     X, y = feat.get_vol_Xy(dates=long_dates, ampm='am')
 #     print X.shape, y.shape
 
-#     X_valid, y_valid = feat.get_tra_Xy(dates=valid_dates, ampm='am')
+#     X_valid, y_valid = feat.get_vol_Xy(dates=valid_dates, ampm='am')
 #     print X_valid.shape, y_valid.shape
+
+    X, y = feat.get_tra_Xy(dates=long_dates, ampm='am')
+    print X.shape, y.shape
+
+    X_valid, y_valid = feat.get_tra_Xy(dates=valid_dates, ampm='am')
+    print X_valid.shape, y_valid.shape
 
