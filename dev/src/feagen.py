@@ -213,7 +213,7 @@ class Features:
         mask = (df['tollgate_id'] == toll) & (df['direction'] == dire)
         return df[mask]
     
-    def get_vol_X_tolldire(self, dates, ampm, toll, dire, normalize=True):
+    def get_vol_X_tolldire(self, dates, ampm, toll, dire, normalize=True, window_onehot=True):
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
         
@@ -238,19 +238,20 @@ class Features:
 
         car_info = reduce(
             concat(axis=1),
-            [one_tolldire(toll, dire) for toll, dire in toll_dire]
+            [one_tolldire(_t, _d) for _t, _d in toll_dire]
         )
         
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
         weather = self.get_wea(dates=dates, ampm=ampm)
         onehot_tolldire = np.tile(onehot(len(toll_dire), toll_dire.index((toll, dire))), (weekday.shape[0], 1))
         X = np.concatenate([weekday, weather, car_info, onehot_tolldire], axis=1)
-        I6 = np.eye(6)
-        one6 = np.ones(6)
-        X = reduce(
-            concat(axis=0),
-            np.array([np.concatenate([np.outer(one6, X[i]), I6], axis=1) for i in range(X.shape[0])])
-        )
+        if window_onehot:
+            I6 = np.eye(6)
+            one6 = np.ones(6)
+            X = reduce(
+                concat(axis=0),
+                np.array([np.concatenate([np.outer(one6, X[i]), I6], axis=1) for i in range(X.shape[0])])
+            )
         
         # shape: (number of days * 6, 205)
         # 6 = predicting windows per 2 hours
@@ -263,13 +264,13 @@ class Features:
         df = None
         return X
     
-    def get_vol_X(self, dates, ampm, normalize=True):
+    def get_vol_X(self, dates, ampm, normalize=True, window_onehot=True):
         return reduce(
             concat(axis=0),
             [self.get_vol_X_tolldire(dates=dates, ampm=ampm, toll=toll, dire=dire, normalize=normalize) for toll, dire in toll_dire]
         )
     
-    def get_vol_y(self, dates, ampm, toll, dire, normalize=True):
+    def get_vol_y(self, dates, ampm, toll, dire):
         df = self.get_vol(dates, ampm, toll, dire, intervals_predict)
         group = df.groupby(['date', 'time', 'tollgate_id', 'direction'])
         df = group.count().reset_index()
@@ -283,11 +284,11 @@ class Features:
         df = None
         return y
     
-    def get_vol_Xy(self, dates, ampm, normalize=True):
+    def get_vol_Xy(self, dates, ampm, normalize=True, window_onehot=True):
         X = self.get_vol_X(dates, ampm, normalize=normalize)
         y = reduce(
             concat(axis=0),
-            [self.get_vol_y(dates=dates, ampm=ampm, toll=toll, dire=dire, normalize=normalize) for toll, dire in toll_dire]
+            [self.get_vol_y(dates=dates, ampm=ampm, toll=toll, dire=dire) for toll, dire in toll_dire]
         )
         
         return X, y
@@ -303,7 +304,7 @@ class Features:
         mask = (df['intersection_id'] == inte) & (df['tollgate_id'] == toll)
         return df[mask]
     
-    def get_tra_X_intetoll(self, dates, ampm, inte, toll, normalize=True):
+    def get_tra_X_intetoll(self, dates, ampm, inte, toll, normalize=True, window_onehot=True):
         if not isinstance(dates, list) and not isinstance(dates, tuple):
             dates = (dates, dates)
 
@@ -329,19 +330,20 @@ class Features:
 
         car_info = reduce(
             concat(axis=1),
-            [one_intetoll(inte, toll) for inte, toll in inte_toll]
+            [one_intetoll(_i, _t) for _i, _t in inte_toll]
         )
-
+        
         weekday = np.array([onehot(7, date.weekday()) for date in pd.date_range(*dates)])
         weather = self.get_wea(dates=dates, ampm=ampm)
         onehot_intetoll = np.tile(onehot(len(inte_toll), inte_toll.index((inte, toll))), (weekday.shape[0], 1))
         X = np.concatenate([weekday, weather, car_info, onehot_intetoll], axis=1)
-        I6 = np.eye(6)
-        one6 = np.ones(6)
-        X = reduce(
-            concat(axis=0),
-            np.array([np.concatenate([np.outer(one6, X[i]), I6], axis=1) for i in range(X.shape[0])])
-        )
+        if window_onehot:
+            I6 = np.eye(6)
+            one6 = np.ones(6)
+            X = reduce(
+                concat(axis=0),
+                np.array([np.concatenate([np.outer(one6, X[i]), I6], axis=1) for i in range(X.shape[0])])
+            )
         
         # shape: (number of days * 6, 98)
         # 6 = predicting windows per 2 hours
@@ -354,13 +356,13 @@ class Features:
         df = None
         return X
 
-    def get_tra_X(self, dates, ampm, normalize=True):
+    def get_tra_X(self, dates, ampm, normalize=True, window_onehot=True):
         return reduce(
             concat(axis=0),
             [self.get_tra_X_intetoll(dates=dates, ampm=ampm, inte=inte, toll=toll, normalize=normalize) for inte, toll in inte_toll]
         )
     
-    def get_tra_y(self, dates, ampm, inte, toll, normalize=True):
+    def get_tra_y(self, dates, ampm, inte, toll):
         df = self.get_tra(dates, ampm, inte, toll, intervals_predict)
         group = df.groupby(['date', 'time', 'intersection_id', 'tollgate_id'])
         df = group.agg(np.mean).reset_index()
@@ -374,11 +376,11 @@ class Features:
         df = None
         return y
     
-    def get_tra_Xy(self, dates, ampm, normalize=True):
+    def get_tra_Xy(self, dates, ampm, normalize=True, window_onehot=True):
         X = self.get_tra_X(dates, ampm, normalize=normalize)
         y = reduce(
             concat(axis=0),
-            [self.get_tra_y(dates=dates, ampm=ampm, inte=inte, toll=toll, normalize=normalize) for inte, toll in inte_toll]
+            [self.get_tra_y(dates=dates, ampm=ampm, inte=inte, toll=toll) for inte, toll in inte_toll]
         )
         
         return X, y
