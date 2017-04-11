@@ -5,7 +5,7 @@ def cal_mape(label,pred):
 	key = 'avg_travel_time'
 	y = label[key].as_matrix()
 	x = pred[key].as_matrix()
-	return np.sum(np.abs(y-x)/y)/len(y)
+	return np.sum(np.abs(y-x))/len(y)
 
 
 
@@ -29,6 +29,6 @@ my_seq2one = my_seq2one.sort_values(by=keys)
 my_seq2seq = my_seq2seq.sort_values(by=keys)
 
 
-print 'vs. si an (0.1801) 	:',cal_mape(si_an,my_seq2seq)
-print 'vs. my seq2one (0.1810)	:',cal_mape(my_seq2one,my_seq2seq)
+print 'si an (0.1801) vs. my seq2seq	:',cal_mape(si_an,my_seq2seq)
+print 'my seq2one (0.1810) vs. my seq2seq :',cal_mape(my_seq2one,my_seq2seq)
 print 'si an (0.1801) vs. my seq2one (0.1810)	:',cal_mape(si_an,my_seq2one)
